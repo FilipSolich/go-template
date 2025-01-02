@@ -30,7 +30,7 @@ func NewDevelopment() (*slog.Logger, *zap.Logger) {
 	config.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	config.EncodeTime = zapcore.ISO8601TimeEncoder
 	config.EncodeDuration = zapcore.StringDurationEncoder
-	core := zapcore.NewCore(zapcore.NewConsoleEncoder(config), os.Stderr, zap.DebugLevel)
+	core := zapcore.NewCore(zapcore.NewConsoleEncoder(config), zapcore.Lock(os.Stderr), zap.DebugLevel)
 
 	handler := zapslog.NewHandler(core, coreZapSlogOptions...)
 	sLogger := slog.New(handler)
@@ -46,7 +46,7 @@ func NewProduction() (*slog.Logger, *zap.Logger) {
 	config.EncodeLevel = zapcore.LowercaseLevelEncoder
 	config.EncodeTime = zapcore.EpochTimeEncoder
 	config.EncodeDuration = zapcore.SecondsDurationEncoder
-	core := zapcore.NewCore(zapcore.NewJSONEncoder(config), os.Stderr, zap.InfoLevel)
+	core := zapcore.NewCore(zapcore.NewJSONEncoder(config), zapcore.Lock(os.Stderr), zap.InfoLevel)
 
 	handler := zapslog.NewHandler(core, coreZapSlogOptions...)
 	sLogger := slog.New(handler)
