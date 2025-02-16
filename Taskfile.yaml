@@ -6,20 +6,16 @@ dotenv:
 vars:
   MODULE: github.com/FilipSolich/go-template
   BIN: bin
+
   VERSION: '{{default "latest" .VERSION}}'
   REGISTRY: ghcr.io
   IMAGE: '{{.REGISTRY}}/filipsolich/go-template'
   TAG: '{{.IMAGE}}:{{.VERSION}}'
-  DATETIME:
-    sh: date -u +'%Y-%m-%dT%H:%M:%SZ'
-  REVISION:
-    sh: git rev-parse --short HEAD
 
-  # Tools
-  GOLANGCI_LINT: golangci-lint
-  GOLANGCI_LINT_VERSION: v1.62.2
-  GORELEASER: goreleaser
-  GORELEASER_VERSION: v2.2.0
+  DATETIME:
+    sh: date --utc --iso-8601=seconds
+  COMMIT:
+    sh: git rev-parse --short HEAD
 
 tasks:
   default:
@@ -39,9 +35,8 @@ tasks:
 
   lint:
     desc: Lint code
-    deps: [tools:install:golangci-lint]
     cmds:
-      - '{{.BIN}}/{{.GOLANGCI_LINT}} run'
+      - go tool golangci-lint run
 
   build:
     desc: Build binaries
@@ -51,7 +46,9 @@ tasks:
   build:server:
     desc: Build server
     cmds:
-      - go build -ldflags "-X {{.MODULE}}/internal/version.Version={{.VERSION}} -X {{.MODULE}}/internal/version.Commit={{.REVISION}}" -o bin/server {{.MODULE}}/cmd/server
+      - GOAMD64=v2 go build
+        -ldflags "-X {{.MODULE}}/internal/version.Version={{.VERSION}} -X {{.MODULE}}/internal/version.Commit={{.COMMIT}}"
+        -o bin/server {{.MODULE}}/cmd/server
 
   run:
     desc: Run server
@@ -73,9 +70,8 @@ tasks:
   clean:
     desc: Clean up
     cmds:
-      - go clean -r -i -testcache
+      - go clean
       - rm -rf bin
-      - rm -rf dist
       - rm -rf .task
       - rm -f coverage.out
       - find . -name '__debug_*' -type f -delete
@@ -93,50 +89,13 @@ tasks:
     desc: Build Docker image
     cmds:
       - docker build
+        --build-arg MODULE={{.MODULE}}
         --build-arg CREATED={{.DATETIME}}
         --build-arg VERSION={{.VERSION}}
-        --build-arg REVISION={{.REVISION}}
+        --build-arg COMMIT={{.COMMIT}}
         -t {{.TAG}} .
 
   docker:push:
     desc: Push Docker image
     cmds:
       - docker push {{.TAG}}
-
-  tools:install:
-    desc: Install Go tool
-    requires:
-      vars: [NAME, PACKAGE, VERSION]
-    dir: '{{.BIN}}'
-    silent: true
-    cmd: |
-      if [ -f "{{.NAME}}-{{.VERSION}}" ]; then
-        exit 0
-      fi
-      echo "Downloading {{.NAME}}@{{.VERSION}}"
-      GOBIN={{.PWD}}/{{.BIN}} go install {{.PACKAGE}}@{{.VERSION}}
-      mv {{.NAME}} {{.NAME}}-{{.VERSION}}
-      ln -sf {{.NAME}}-{{.VERSION}} {{.NAME}}
-
-  tools:install:golangci-lint:
-    desc: Install golangci-lint if not installed already
-    cmds:
-      - task: tools:install
-        vars:
-          NAME: '{{.GOLANGCI_LINT}}'
-          PACKAGE: github.com/golangci/golangci-lint/cmd/golangci-lint
-          VERSION: '{{.GOLANGCI_LINT_VERSION}}'
-
-  tools:install:goreleaser:
-    desc: Install goreleaser if not installed already
-    cmds:
-      - task: tools:install
-        vars:
-          NAME: '{{.GORELEASER}}'
-          PACKAGE: github.com/goreleaser/goreleaser/v2
-          VERSION: '{{.GORELEASER_VERSION}}'
-
-  release:
-    deps: [tools:install:goreleaser]
-    cmds:
-      - '{{.BIN}}/{{.GORELEASER}} release --snapshot --clean'

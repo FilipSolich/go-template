@@ -17,8 +17,9 @@ func main() {
 	info := version.Info()
 	slog.Info("Starting server",
 		slog.String("version", info.Version),
-		slog.String("commit", info.Commit),
 		slog.String("goVersion", info.GoVersion),
+		slog.String("commit", info.Commit),
+		slog.String("buildDatetime", info.BuildDatetime),
 	)
 
 	http.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
